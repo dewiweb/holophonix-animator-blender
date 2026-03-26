@@ -10,10 +10,12 @@ try:
     from PySide6.QtWidgets import (
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QPushButton, QLabel, QSlider, QGroupBox, QTextEdit,
-        QProgressBar, QSplitter, QFrame, QComboBox, QGridLayout
+        QProgressBar, QSplitter, QFrame, QComboBox, QGridLayout,
+        QTabWidget, QScrollArea, QToolButton, QSizePolicy, QSpacerItem,
+        QGraphicsView, QGraphicsScene, QGraphicsEllipseItem, QGraphicsLineItem
     )
-    from PySide6.QtCore import QTimer, Qt, Signal, QObject
-    from PySide6.QtGui import QFont, QIcon, QPixmap
+    from PySide6.QtCore import QTimer, Qt, Signal, QObject, QPropertyAnimation, QEasingCurve, QRect
+    from PySide6.QtGui import QFont, QIcon, QPixmap, QPalette, QColor, QPainter, QLinearGradient, QPen
     
     PYSIDE_AVAILABLE = True
 except ImportError:
@@ -61,14 +63,153 @@ class BlenderBridge(QObject):
             print(f"[Holophonix] Bridge update error: {e}")
 
 
+class ModernButton(QPushButton):
+    """Modern styled button with animations."""
+    def __init__(self, text, icon_name=None):
+        super().__init__(text)
+        self.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                       stop:0 #2d2d30, stop:1 #3e3e42);
+                border: 1px solid #555;
+                border-radius: 6px;
+                padding: 8px 16px;
+                color: white;
+                font-weight: bold;
+                font-size: 12px;
+                min-width: 80px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                       stop:0 #404045, stop:1 #55555a);
+                border-color: #0078d4;
+                box-shadow: 0 2px 8px rgba(0, 120, 212, 0.3);
+            }
+            QPushButton:pressed {
+                background: #0078d4;
+                transform: translateY(1px);
+            }
+            QPushButton:disabled {
+                background: #2a2a2a;
+                color: #666;
+                border-color: #444;
+            }
+        """)
+
+
+class ModernSlider(QSlider):
+    """Modern styled slider with real-time value display."""
+    def __init__(self, orientation=Qt.Horizontal):
+        super().__init__(orientation)
+        self.setStyleSheet("""
+            QSlider::groove:horizontal {
+                border: 1px solid #444;
+                height: 8px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                         stop:0 #2d2d30, stop:1 #3e3e42);
+                border-radius: 4px;
+            }
+            QSlider::handle:horizontal {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                         stop:0 #0078d4, stop:1 #005a9e);
+                border: 2px solid #0099ff;
+                width: 18px;
+                height: 18px;
+                margin: -7px 0;
+                border-radius: 9px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            }
+            QSlider::handle:horizontal:hover {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                         stop:0 #0099ff, stop:1 #0078d4);
+                border-color: #00ccff;
+                box-shadow: 0 0 8px rgba(0, 153, 255, 0.5);
+            }
+        """)
+
+
+class ModernCard(QFrame):
+    """Material Design card with elevation."""
+    def __init__(self):
+        super().__init__()
+        self.setFrameStyle(QFrame.NoFrame)
+        self.setStyleSheet("""
+            QFrame {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                       stop:0 #3a3a3d, stop:1 #2d2d30);
+                border: 1px solid #444;
+                border-radius: 8px;
+                margin: 4px;
+            }
+        """)
+
+
+class TrajectoryWidget(QGraphicsView):
+    """Real-time trajectory visualization."""
+    def __init__(self):
+        super().__init__()
+        self.scene = QGraphicsScene()
+        self.setScene(self.scene)
+        self.setRenderHint(QPainter.Antialiasing)
+        self.setStyleSheet("""
+            QGraphicsView {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                                       stop:0 #1a1a1c, stop:1 #2d2d30);
+                border: 1px solid #444;
+                border-radius: 4px;
+            }
+        """)
+        self.setMinimumHeight(200)
+        self.trajectory_items = []
+        
+    def update_trajectory(self, points):
+        """Update trajectory visualization."""
+        # Clear previous trajectory
+        for item in self.trajectory_items:
+            self.scene.removeItem(item)
+        self.trajectory_items.clear()
+        
+        if not points:
+            return
+            
+        # Draw trajectory
+        pen = QPen(QColor(0, 153, 255), 2)
+        pen.setCosmetic(True)
+        
+        for i in range(len(points) - 1):
+            line = QGraphicsLineItem(
+                points[i][0] * 50, -points[i][1] * 50,
+                points[i+1][0] * 50, -points[i+1][1] * 50
+            )
+            line.setPen(pen)
+            self.scene.addItem(line)
+            self.trajectory_items.append(line)
+        
+        # Add points
+        for point in points:
+            ellipse = QGraphicsEllipseItem(
+                point[0] * 50 - 3, -point[1] * 50 - 3, 6, 6
+            )
+            ellipse.setBrush(QColor(255, 100, 100))
+            ellipse.setPen(QPen(QColor(255, 150, 150), 1))
+            self.scene.addItem(ellipse)
+            self.trajectory_items.append(ellipse)
+        
+        # Center view
+        self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
+
+
 class HolophonixWindow(QMainWindow):
     """Main PySide window for Holophonix advanced control."""
     
     def __init__(self):
         super().__init__()
         self.bridge = BlenderBridge()
-        self.setWindowTitle("Holophonix Animator - Advanced Control")
-        self.setGeometry(100, 100, 800, 600)
+        self.setWindowTitle("🎵 Holophonix Animator - Advanced Control")
+        self.setGeometry(100, 100, 1000, 700)
+        
+        # Apply dark theme
+        self.setup_dark_theme()
         
         # Setup UI
         self.setup_ui()
@@ -76,22 +217,388 @@ class HolophonixWindow(QMainWindow):
         
         # Set window flags
         self.setWindowFlags(Qt.WindowStaysOnTopHint)
+        
+        # Setup animations
+        self.setup_animations()
+    
+    def setup_dark_theme(self):
+        """Apply modern dark theme."""
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(45, 45, 48))
+        palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
+        palette.setColor(QPalette.Base, QColor(30, 30, 30))
+        palette.setColor(QPalette.AlternateBase, QColor(40, 40, 40))
+        palette.setColor(QPalette.ToolTipBase, QColor(0, 120, 212))
+        palette.setColor(QPalette.ToolTipText, QColor(255, 255, 255))
+        palette.setColor(QPalette.Text, QColor(255, 255, 255))
+        palette.setColor(QPalette.Button, QColor(61, 61, 64))
+        palette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
+        palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
+        palette.setColor(QPalette.Link, QColor(0, 153, 255))
+        palette.setColor(QPalette.Highlight, QColor(0, 120, 212))
+        palette.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
+        self.setPalette(palette)
+    
+    def setup_animations(self):
+        """Setup UI animations."""
+        self.fade_animation = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_animation.setDuration(300)
+        self.fade_animation.setEasingCurve(QEasingCurve.OutCubic)
     
     def setup_ui(self):
-        """Create the UI layout."""
+        """Create the modern UI layout with tabs."""
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
-        # Main layout
-        main_layout = QHBoxLayout(central_widget)
+        # Main vertical layout
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(8, 8, 8, 8)
+        main_layout.setSpacing(8)
         
-        # Left panel - Controls
-        left_panel = self.create_control_panel()
-        main_layout.addWidget(left_panel, 1)
+        # Header with status
+        header_card = ModernCard()
+        header_layout = QHBoxLayout(header_card)
+        header_layout.setContentsMargins(12, 8, 12, 8)
         
-        # Right panel - Info & Timeline
-        right_panel = self.create_info_panel()
-        main_layout.addWidget(right_panel, 1)
+        # OSC Status
+        self.osc_status_label = QLabel("🔴 OSC: Disconnected")
+        self.osc_status_label.setStyleSheet("""
+            QLabel {
+                color: #ff4444;
+                font-weight: bold;
+                font-size: 14px;
+                padding: 4px 8px;
+                background: rgba(255, 68, 68, 0.1);
+                border-radius: 4px;
+            }
+        """)
+        header_layout.addWidget(self.osc_status_label)
+        
+        header_layout.addStretch()
+        
+        # Transport status
+        self.transport_status_label = QLabel("⏹ Stopped")
+        self.transport_status_label.setStyleSheet("""
+            QLabel {
+                color: #888;
+                font-weight: bold;
+                font-size: 14px;
+                padding: 4px 8px;
+                background: rgba(136, 136, 136, 0.1);
+                border-radius: 4px;
+            }
+        """)
+        header_layout.addWidget(self.transport_status_label)
+        
+        main_layout.addWidget(header_card)
+        
+        # Tab widget for organized content
+        self.tab_widget = QTabWidget()
+        self.tab_widget.setStyleSheet("""
+            QTabWidget::pane {
+                border: 1px solid #444;
+                background: #2d2d30;
+                border-radius: 4px;
+            }
+            QTabBar::tab {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                       stop:0 #3a3a3d, stop:1 #2d2d30);
+                border: 1px solid #444;
+                border-bottom: none;
+                border-radius: 4px 4px 0 0;
+                padding: 8px 16px;
+                margin-right: 2px;
+                color: #ccc;
+                font-weight: bold;
+            }
+            QTabBar::tab:selected {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                       stop:0 #0078d4, stop:1 #005a9e);
+                color: white;
+                border-color: #0078d4;
+            }
+            QTabBar::tab:hover:!selected {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                       stop:0 #404045, stop:1 #55555a);
+                color: white;
+            }
+        """)
+        
+        # Tab 1: Transport & Models
+        transport_tab = self.create_transport_tab()
+        self.tab_widget.addTab(transport_tab, "🎮 Transport")
+        
+        # Tab 2: Parameters
+        params_tab = self.create_parameters_tab()
+        self.tab_widget.addTab(params_tab, "⚙️ Parameters")
+        
+        # Tab 3: Visualization
+        viz_tab = self.create_visualization_tab()
+        self.tab_widget.addTab(viz_tab, "📊 Visualization")
+        
+        # Tab 4: Tracks & OSC
+        tracks_tab = self.create_tracks_tab()
+        self.tab_widget.addTab(tracks_tab, "🎵 Tracks")
+        
+        main_layout.addWidget(self.tab_widget)
+    
+    def create_transport_tab(self):
+        """Create transport and models tab."""
+        widget = QWidget()
+        layout = QHBoxLayout(widget)
+        layout.setSpacing(12)
+        
+        # Left: Transport controls
+        transport_card = ModernCard()
+        transport_layout = QVBoxLayout(transport_card)
+        transport_layout.setContentsMargins(12, 12, 12, 12)
+        
+        # Title
+        title = QLabel("🎬 Transport Controls")
+        title.setStyleSheet("font-size: 16px; font-weight: bold; color: #0078d4; margin-bottom: 8px;")
+        transport_layout.addWidget(title)
+        
+        # Play/Stop buttons
+        btn_layout = QHBoxLayout()
+        self.play_btn = ModernButton("▶ Play")
+        self.play_btn.clicked.connect(self.play_selected)
+        btn_layout.addWidget(self.play_btn)
+        
+        self.stop_btn = ModernButton("⏹ Stop")
+        self.stop_btn.clicked.connect(self.stop_all)
+        btn_layout.addWidget(self.stop_btn)
+        
+        transport_layout.addLayout(btn_layout)
+        
+        # Loop mode
+        loop_layout = QHBoxLayout()
+        loop_layout.addWidget(QLabel("Loop:"))
+        self.loop_combo = QComboBox()
+        self.loop_combo.addItems(["Once", "Loop", "Ping-Pong"])
+        self.loop_combo.setStyleSheet("""
+            QComboBox {
+                background: #3a3a3d;
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 4px 8px;
+                color: white;
+                min-width: 100px;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 4px solid #888;
+                margin-right: 4px;
+            }
+        """)
+        self.loop_combo.currentTextChanged.connect(self.update_loop_mode)
+        loop_layout.addWidget(self.loop_combo)
+        transport_layout.addLayout(loop_layout)
+        
+        # Duration
+        self.duration_slider = ModernSlider()
+        self.duration_slider.setRange(10, 600)
+        self.duration_slider.setValue(40)
+        self.duration_label = QLabel("Duration: 4.0s")
+        self.duration_label.setStyleSheet("color: #ccc; font-size: 12px;")
+        self.duration_slider.valueChanged.connect(self.update_duration)
+        transport_layout.addWidget(self.duration_label)
+        transport_layout.addWidget(self.duration_slider)
+        
+        layout.addWidget(transport_card)
+        
+        # Right: Model selector
+        model_card = ModernCard()
+        model_layout = QVBoxLayout(model_card)
+        model_layout.setContentsMargins(12, 12, 12, 12)
+        
+        # Model title
+        model_title = QLabel("🎭 Animation Models")
+        model_title.setStyleSheet("font-size: 16px; font-weight: bold; color: #0078d4; margin-bottom: 8px;")
+        model_layout.addWidget(model_title)
+        
+        # Current model display
+        self.model_label = QLabel("Model: ---")
+        self.model_label.setStyleSheet("""
+            QLabel {
+                background: rgba(0, 120, 212, 0.1);
+                border: 1px solid #0078d4;
+                border-radius: 4px;
+                padding: 8px;
+                color: #00ccff;
+                font-weight: bold;
+                margin-bottom: 12px;
+            }
+        """)
+        model_layout.addWidget(self.model_label)
+        
+        # Model grid
+        model_grid = QGridLayout()
+        models = ["circular", "linear", "figure8", "spiral", "pendulum", "random_walk"]
+        icons = ["⭕", "➖", "∞", "🌀", "🔄", "🎲"]
+        
+        for i, (model_id, icon) in enumerate(zip(models, icons)):
+            row, col = i // 3, i % 3
+            btn = ModernButton(f"{icon} {model_id.replace('_', ' ').title()}")
+            btn.clicked.connect(lambda checked, m=model_id: self.set_model(m))
+            model_grid.addWidget(btn, row, col)
+        
+        model_layout.addLayout(model_grid)
+        layout.addWidget(model_card)
+        
+        return widget
+    
+    def create_parameters_tab(self):
+        """Create advanced parameters tab."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        # Parameters card
+        params_card = ModernCard()
+        params_layout = QVBoxLayout(params_card)
+        params_layout.setContentsMargins(12, 12, 12, 12)
+        
+        # Title
+        title = QLabel("⚙️ Advanced Parameters")
+        title.setStyleSheet("font-size: 16px; font-weight: bold; color: #0078d4; margin-bottom: 12px;")
+        params_layout.addWidget(title)
+        
+        # Parameter sliders with enhanced styling
+        sliders = [
+            ("radius", "Radius", "2.0", 20, 200),
+            ("height", "Height", "0.0", -100, 100),
+            ("speed", "Speed", "1.0", 1, 200),
+            ("turns", "Turns", "5.0", 1, 100)
+        ]
+        
+        for param_id, label, default_val, min_val, max_val in sliders:
+            param_label = QLabel(f"{label}: {default_val}")
+            param_label.setStyleSheet("color: #ccc; font-size: 13px; margin: 4px 0;")
+            params_layout.addWidget(param_label)
+            
+            slider = ModernSlider()
+            slider.setRange(min_val, max_val)
+            slider.setValue(float(default_val) * 10 if '.' in default_val else int(default_val))
+            slider.valueChanged.connect(
+                lambda v, pid=param_id, pl=param_label: self.update_parameter(pid, v, pl)
+            )
+            params_layout.addWidget(slider)
+            
+            # Store reference
+            setattr(self, f"{param_id}_slider", slider)
+            setattr(self, f"{param_id}_label", param_label)
+        
+        layout.addWidget(params_card)
+        layout.addStretch()
+        
+        return widget
+    
+    def create_visualization_tab(self):
+        """Create visualization tab with trajectory display."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        # Trajectory visualization
+        viz_card = ModernCard()
+        viz_layout = QVBoxLayout(viz_card)
+        viz_layout.setContentsMargins(12, 12, 12, 12)
+        
+        title = QLabel("📊 Trajectory Visualization")
+        title.setStyleSheet("font-size: 16px; font-weight: bold; color: #0078d4; margin-bottom: 8px;")
+        viz_layout.addWidget(title)
+        
+        # Trajectory widget
+        self.trajectory_widget = TrajectoryWidget()
+        viz_layout.addWidget(self.trajectory_widget)
+        
+        # Quick actions
+        actions_layout = QHBoxLayout()
+        refresh_btn = ModernButton("🔄 Refresh")
+        refresh_btn.clicked.connect(self.refresh_preview)
+        actions_layout.addWidget(refresh_btn)
+        
+        focus_btn = ModernButton("🎯 Focus View")
+        focus_btn.clicked.connect(self.focus_view)
+        actions_layout.addWidget(focus_btn)
+        
+        actions_layout.addStretch()
+        viz_layout.addLayout(actions_layout)
+        
+        layout.addWidget(viz_card)
+        
+        return widget
+    
+    def create_tracks_tab(self):
+        """Create tracks and OSC management tab."""
+        widget = QWidget()
+        layout = QHBoxLayout(widget)
+        layout.setSpacing(12)
+        
+        # Tracks list
+        tracks_card = ModernCard()
+        tracks_layout = QVBoxLayout(tracks_card)
+        tracks_layout.setContentsMargins(12, 12, 12, 12)
+        
+        title = QLabel("🎵 Active Tracks")
+        title.setStyleSheet("font-size: 16px; font-weight: bold; color: #0078d4; margin-bottom: 8px;")
+        tracks_layout.addWidget(title)
+        
+        self.track_list = QTextEdit()
+        self.track_list.setStyleSheet("""
+            QTextEdit {
+                background: #1a1a1c;
+                border: 1px solid #444;
+                border-radius: 4px;
+                color: #ccc;
+                font-family: 'Consolas', monospace;
+                font-size: 12px;
+            }
+        """)
+        self.track_list.setReadOnly(True)
+        self.track_list.setMaximumHeight(150)
+        tracks_layout.addWidget(self.track_list)
+        
+        layout.addWidget(tracks_card)
+        
+        # OSC controls
+        osc_card = ModernCard()
+        osc_layout = QVBoxLayout(osc_card)
+        osc_layout.setContentsMargins(12, 12, 12, 12)
+        
+        osc_title = QLabel("📡 OSC Connection")
+        osc_title.setStyleSheet("font-size: 16px; font-weight: bold; color: #0078d4; margin-bottom: 8px;")
+        osc_layout.addWidget(osc_title)
+        
+        # OSC IP display
+        self.osc_ip_label = QLabel("IP: ---")
+        self.osc_ip_label.setStyleSheet("color: #ccc; margin: 4px 0;")
+        osc_layout.addWidget(self.osc_ip_label)
+        
+        # OSC buttons
+        osc_btn_layout = QHBoxLayout()
+        connect_btn = ModernButton("🔗 Connect")
+        connect_btn.clicked.connect(self.toggle_osc)
+        osc_btn_layout.addWidget(connect_btn)
+        
+        dump_btn = ModernButton("💾 Dump")
+        dump_btn.clicked.connect(self.osc_dump)
+        osc_btn_layout.addWidget(dump_btn)
+        
+        osc_layout.addLayout(osc_btn_layout)
+        
+        # Import button
+        import_btn = ModernButton("📁 Import .hol")
+        import_btn.clicked.connect(self.import_hol)
+        osc_layout.addWidget(import_btn)
+        
+        layout.addWidget(osc_card)
+        
+        return widget
     
     def create_control_panel(self):
         """Create the advanced control panel."""
@@ -305,28 +812,83 @@ class HolophonixWindow(QMainWindow):
         self.radius_slider.valueChanged.connect(self.update_radius)
         self.height_slider.valueChanged.connect(self.update_height)
     
+    def update_parameter(self, param_id, value, label):
+        """Update parameter display and Blender value."""
+        if param_id == "radius":
+            radius = value / 10.0
+            label.setText(f"Radius: {radius:.1f}")
+            self.update_blender_param("radius", radius)
+        elif param_id == "height":
+            height = value / 10.0
+            label.setText(f"Height: {height:.1f}")
+            self.update_blender_param("height", height)
+        elif param_id == "speed":
+            speed = value / 100.0
+            label.setText(f"Speed: {speed:.1f}")
+            self.update_blender_param("speed", speed)
+        elif param_id == "turns":
+            turns = value / 10.0
+            label.setText(f"Turns: {turns:.1f}")
+            self.update_blender_param("turns", turns)
+    
     def update_osc_status(self, connected, ip):
         """Update OSC status display."""
         if connected:
-            self.osc_status_label.setText("Connected")
-            self.osc_status_label.setStyleSheet("color: green; font-weight: bold;")
+            self.osc_status_label.setText("🟢 OSC: Connected")
+            self.osc_status_label.setStyleSheet("""
+                QLabel {
+                    color: #44ff44;
+                    font-weight: bold;
+                    font-size: 14px;
+                    padding: 4px 8px;
+                    background: rgba(68, 255, 68, 0.1);
+                    border-radius: 4px;
+                }
+            """)
         else:
-            self.osc_status_label.setText("Disconnected")
-            self.osc_status_label.setStyleSheet("color: red; font-weight: bold;")
+            self.osc_status_label.setText("🔴 OSC: Disconnected")
+            self.osc_status_label.setStyleSheet("""
+                QLabel {
+                    color: #ff4444;
+                    font-weight: bold;
+                    font-size: 14px;
+                    padding: 4px 8px;
+                    background: rgba(255, 68, 68, 0.1);
+                    border-radius: 4px;
+                }
+            """)
         self.osc_ip_label.setText(f"IP: {ip}")
     
     def update_transport_status(self, n_active):
         """Update transport status."""
         if n_active > 0:
-            self.transport_status_label.setText(f"Playing: {n_active}")
-            self.transport_status_label.setStyleSheet("color: green; font-weight: bold;")
+            self.transport_status_label.setText(f"🎵 Playing: {n_active}")
+            self.transport_status_label.setStyleSheet("""
+                QLabel {
+                    color: #44ff44;
+                    font-weight: bold;
+                    font-size: 14px;
+                    padding: 4px 8px;
+                    background: rgba(68, 255, 68, 0.1);
+                    border-radius: 4px;
+                }
+            """)
         else:
-            self.transport_status_label.setText("Stopped")
-            self.transport_status_label.setStyleSheet("color: gray; font-weight: bold;")
+            self.transport_status_label.setText("⏹ Stopped")
+            self.transport_status_label.setStyleSheet("""
+                QLabel {
+                    color: #888;
+                    font-weight: bold;
+                    font-size: 14px;
+                    padding: 4px 8px;
+                    background: rgba(136, 136, 136, 0.1);
+                    border-radius: 4px;
+                }
+            """)
     
     def update_track_list(self, tracks):
         """Update track list display."""
-        text = "\n".join([f"Track {tid:03d}: {name}" for tid, name in tracks])
+        text = "\n".join([f"🎵 Track {tid:03d}: {name}" for tid, name in tracks])
         self.track_list.setText(text)
     
     def update_model_info(self, model_label):
@@ -334,15 +896,17 @@ class HolophonixWindow(QMainWindow):
         self.model_label.setText(f"Model: {model_label}")
     
     def update_radius(self, value):
-        """Update radius parameter."""
+        """Update radius parameter (legacy)."""
         radius = value / 10.0
-        self.radius_label.setText(f"Radius: {radius:.1f}")
+        if hasattr(self, 'radius_label'):
+            self.radius_label.setText(f"Radius: {radius:.1f}")
         self.update_blender_param("radius", radius)
     
     def update_height(self, value):
-        """Update height parameter."""
+        """Update height parameter (legacy)."""
         height = value / 10.0
-        self.height_label.setText(f"Height: {height:.1f}")
+        if hasattr(self, 'height_label'):
+            self.height_label.setText(f"Height: {height:.1f}")
         self.update_blender_param("height", height)
     
     def update_blender_param(self, param_name, value):
@@ -352,7 +916,13 @@ class HolophonixWindow(QMainWindow):
             param_key = f"hol_param_{param_name}"
             scene[param_key] = value
         except Exception as e:
-            self.log_text.append(f"Error updating {param_name}: {e}")
+            if hasattr(self, 'log_text'):
+                self.log_text.append(f"Error updating {param_name}: {e}")
+    
+    def update_trajectory_visualization(self, points):
+        """Update trajectory visualization widget."""
+        if hasattr(self, 'trajectory_widget'):
+            self.trajectory_widget.update_trajectory(points)
     
     def toggle_osc(self):
         """Toggle OSC connection."""
@@ -363,39 +933,48 @@ class HolophonixWindow(QMainWindow):
             else:
                 bpy.ops.holophonix.osc_connect()
         except Exception as e:
-            self.log_text.append(f"OSC toggle error: {e}")
+            if hasattr(self, 'log_text'):
+                self.log_text.append(f"OSC toggle error: {e}")
     
     def play_selected(self):
         """Start playback."""
         try:
             bpy.ops.holophonix.play_selected()
-            self.log_text.append("Playback started")
+            if hasattr(self, 'log_text'):
+                self.log_text.append("🎵 Playback started")
         except Exception as e:
-            self.log_text.append(f"Play error: {e}")
+            if hasattr(self, 'log_text'):
+                self.log_text.append(f"Play error: {e}")
     
     def stop_all(self):
         """Stop all playback."""
         try:
             bpy.ops.holophonix.stop_all()
-            self.log_text.append("Playback stopped")
+            if hasattr(self, 'log_text'):
+                self.log_text.append("⏹ Playback stopped")
         except Exception as e:
-            self.log_text.append(f"Stop error: {e}")
+            if hasattr(self, 'log_text'):
+                self.log_text.append(f"Stop error: {e}")
     
     def set_model(self, model_id):
         """Set animation model."""
         try:
             bpy.ops.holophonix.set_anim_model(model_id=model_id)
-            self.log_text.append(f"Model set to: {model_id}")
+            if hasattr(self, 'log_text'):
+                self.log_text.append(f"🎭 Model set to: {model_id}")
         except Exception as e:
-            self.log_text.append(f"Model set error: {e}")
+            if hasattr(self, 'log_text'):
+                self.log_text.append(f"Model set error: {e}")
     
     def osc_dump(self):
         """Trigger OSC dump."""
         try:
             bpy.ops.holophonix.osc_dump()
-            self.log_text.append("OSC dump triggered")
+            if hasattr(self, 'log_text'):
+                self.log_text.append("💾 OSC dump triggered")
         except Exception as e:
-            self.log_text.append(f"OSC dump error: {e}")
+            if hasattr(self, 'log_text'):
+                self.log_text.append(f"OSC dump error: {e}")
     
     def update_loop_mode(self, mode_text):
         """Update loop mode."""
@@ -404,14 +983,17 @@ class HolophonixWindow(QMainWindow):
             mode = mode_map.get(mode_text, "LOOP")
             # Store loop mode as a custom property on the scene
             bpy.context.scene["holo_quick_loop"] = mode
-            self.log_text.append(f"Loop mode set to: {mode}")
+            if hasattr(self, 'log_text'):
+                self.log_text.append(f"🔄 Loop mode set to: {mode}")
         except Exception as e:
-            self.log_text.append(f"Loop mode error: {e}")
+            if hasattr(self, 'log_text'):
+                self.log_text.append(f"Loop mode error: {e}")
     
     def update_duration(self, value):
         """Update duration."""
         duration = value / 10.0  # Convert to seconds
-        self.duration_label.setText(f"Duration: {duration:.1f}s")
+        if hasattr(self, 'duration_label'):
+            self.duration_label.setText(f"Duration: {duration:.1f}s")
         try:
             # Store duration as a custom property on the scene
             bpy.context.scene["holo_quick_duration"] = duration
@@ -420,43 +1002,52 @@ class HolophonixWindow(QMainWindow):
             if params_pg:
                 params_pg.duration = duration
         except Exception as e:
-            self.log_text.append(f"Duration update error: {e}")
+            if hasattr(self, 'log_text'):
+                self.log_text.append(f"Duration update error: {e}")
     
     def update_speed(self, value):
         """Update speed parameter."""
         speed = value / 100.0
-        self.speed_label.setText(f"Speed: {speed:.1f}")
+        if hasattr(self, 'speed_label'):
+            self.speed_label.setText(f"Speed: {speed:.1f}")
         self.update_blender_param("speed", speed)
     
     def update_turns(self, value):
         """Update turns parameter."""
         turns = value / 10.0
-        self.turns_label.setText(f"Turns: {turns:.1f}")
+        if hasattr(self, 'turns_label'):
+            self.turns_label.setText(f"Turns: {turns:.1f}")
         self.update_blender_param("turns", turns)
     
     def refresh_preview(self):
         """Refresh trajectory preview."""
         try:
             bpy.ops.holophonix.refresh_preview()
-            self.log_text.append("Preview refreshed")
+            if hasattr(self, 'log_text'):
+                self.log_text.append("🔄 Preview refreshed")
         except Exception as e:
-            self.log_text.append(f"Preview error: {e}")
+            if hasattr(self, 'log_text'):
+                self.log_text.append(f"Preview error: {e}")
     
     def focus_view(self):
         """Focus view on tracks."""
         try:
             bpy.ops.holophonix.focus_view()
-            self.log_text.append("View focused")
+            if hasattr(self, 'log_text'):
+                self.log_text.append("🎯 View focused")
         except Exception as e:
-            self.log_text.append(f"Focus view error: {e}")
+            if hasattr(self, 'log_text'):
+                self.log_text.append(f"Focus view error: {e}")
     
     def import_hol(self):
         """Import .hol file."""
         try:
             bpy.ops.holophonix.import_hol()
-            self.log_text.append("Import dialog opened")
+            if hasattr(self, 'log_text'):
+                self.log_text.append("📁 Import dialog opened")
         except Exception as e:
-            self.log_text.append(f"Import error: {e}")
+            if hasattr(self, 'log_text'):
+                self.log_text.append(f"Import error: {e}")
     
     def closeEvent(self, event):
         """Handle window close event."""
