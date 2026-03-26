@@ -9,6 +9,7 @@ from bpy.props import (
 from ..core import animation as anim_core
 from ..core import draw as draw_core
 from ..core import playback as pb
+from ..core.track import TRACK_OBJECT_PREFIX
 
 PANEL_CATEGORY = "Holophonix"
 

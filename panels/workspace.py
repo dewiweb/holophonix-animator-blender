@@ -131,32 +131,26 @@ _keymaps = []
 
 
 def _register_keymaps():
-    wm = bpy.context.window_manager
-    if not wm:
-        return
-    kc = wm.keyconfigs.addon
+    """Deferred keymap registration — must run after all operators are registered."""
+    kc = bpy.context.window_manager.keyconfigs.addon
     if not kc:
-        return
+        return None  # timers: returning None means don't repeat
 
-    # Space bar in 3D View → Play Selected (when not in animation playback)
     km = kc.keymaps.new(name='3D View', space_type='VIEW_3D')
 
-    # F5 → Play selected tracks
-    kmi = km.keymap_items.new("holophonix.play_selected", type='F5', value='PRESS')
+    kmi = km.keymap_items.new("holophonix.play_selected",  type='F5', value='PRESS')
     _keymaps.append((km, kmi))
 
-    # F6 → Stop all
-    kmi = km.keymap_items.new("holophonix.stop_all", type='F6', value='PRESS')
+    kmi = km.keymap_items.new("holophonix.stop_all",       type='F6', value='PRESS')
     _keymaps.append((km, kmi))
 
-    # F7 → Refresh preview
     kmi = km.keymap_items.new("holophonix.refresh_preview", type='F7', value='PRESS')
     _keymaps.append((km, kmi))
 
-    # Ctrl+Shift+H → Focus on tracks
     kmi = km.keymap_items.new("holophonix.focus_view", type='H',
                                value='PRESS', ctrl=True, shift=True)
     _keymaps.append((km, kmi))
+    return None  # don't repeat
 
 
 def _unregister_keymaps():
@@ -194,7 +188,8 @@ classes = (
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    _register_keymaps()
+    # Defer keymap registration until Blender's context is fully ready
+    bpy.app.timers.register(_register_keymaps, first_interval=0.1)
 
 
 def unregister():
