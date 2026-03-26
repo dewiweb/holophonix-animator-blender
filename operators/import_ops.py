@@ -172,66 +172,66 @@ def _register_dump_handler(context):
 
 def _import_hol_native(data: dict, context) -> tuple:
     """
-    Parse the native Holophonix .hol format:
-      data['hol'] = { '/track/1/name': ['TrackName'], '/track/1/view3D/file3D': [...], ... }
-      data['ae']  = [ '/track/1/azim 45.0', '/track/1/elev 0.0', '/track/1/dist 2.0', ... ]
+    Parse the native Holophonix .hol format.
+    All track data lives in data['ae'] as OSC strings:
+      /track/1/name "MUSIC L"
+      /track/1/azim -35.0
+      /track/1/elev 12.0
+      /track/1/dist 9.79
     Returns (count, errors).
     """
-    hol  = data['hol']   # dict: osc_path -> [value, ...]
-    ae   = data['ae']    # list of strings: "osc_path value"
+    ae = data.get('ae', [])
 
-    # Build ae lookup: { '/track/1/azim': 45.0, ... }
-    ae_vals = {}
+    # Build lookup: { (track_id, param): value }
+    track_data: dict[int, dict] = {}
     for entry in ae:
-        if not isinstance(entry, str):
+        if not isinstance(entry, str) or not entry.startswith('/track/'):
             continue
-        parts = entry.split(None, 1)  # split on first whitespace
-        if len(parts) == 2:
+        parts = entry.split(None, 1)  # ['/track/1/azim', '-35.0']
+        if len(parts) != 2:
+            continue
+        osc_path, raw_val = parts[0], parts[1]
+        segs = osc_path.strip('/').split('/')  # ['track', '1', 'azim']
+        if len(segs) < 3:
+            continue
+        try:
+            tid = int(segs[1])
+        except ValueError:
+            continue
+        param = segs[2]  # 'name', 'azim', 'elev', 'dist', 'color'...
+        if param not in ('name', 'azim', 'elev', 'dist'):
+            continue
+        if tid not in track_data:
+            track_data[tid] = {}
+        # Strip surrounding quotes for string values
+        val = raw_val.strip()
+        if val.startswith('"') and val.endswith('"'):
+            track_data[tid][param] = val[1:-1]
+        else:
             try:
-                ae_vals[parts[0]] = float(parts[1])
+                track_data[tid][param] = float(val)
             except ValueError:
-                ae_vals[parts[0]] = parts[1]
-
-    # Gather track IDs that have a name
-    track_ids = set()
-    for osc_path in hol:
-        parts = osc_path.strip('/').split('/')
-        if len(parts) >= 3 and parts[0] == 'track':
-            try:
-                track_ids.add(int(parts[1]))
-            except ValueError:
-                pass
-    # Also from ae
-    for osc_path in ae_vals:
-        parts = osc_path.strip('/').split('/')
-        if len(parts) >= 3 and parts[0] == 'track':
-            try:
-                track_ids.add(int(parts[1]))
-            except ValueError:
-                pass
+                track_data[tid][param] = val
 
     count = 0
     errors = 0
-    for tid in sorted(track_ids):
+    for tid in sorted(track_data):
         try:
-            name_key  = f"/track/{tid}/name"
-            name_val  = hol.get(name_key, [f"Track {tid:03d}"])
-            name      = name_val[0] if isinstance(name_val, list) and name_val else str(name_val)
+            td   = track_data[tid]
+            name = td.get('name', '')
             if not name:
                 continue  # skip unnamed tracks
-
-            azim = float(ae_vals.get(f"/track/{tid}/azim", 0.0))
-            elev = float(ae_vals.get(f"/track/{tid}/elev", 0.0))
-            dist = float(ae_vals.get(f"/track/{tid}/dist", 1.0))
+            azim = float(td.get('azim', 0.0))
+            elev = float(td.get('elev', 0.0))
+            dist = float(td.get('dist', 1.0))
             x, y, z = _sph2cart(elev, azim, dist)
-
             create_track_object(tid, name, location=(x, y, z))
             count += 1
         except Exception as e:
             errors += 1
             print(f"[HOL Import] Track {tid} error: {e}")
 
-    print(f"[HOL Import] Native parser: {count} tracks imported, {errors} errors")
+    print(f"[HOL Import] Native: {count} tracks, {errors} errors")
     return count, errors
 
 
