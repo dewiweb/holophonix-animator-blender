@@ -16,6 +16,13 @@ from ..core.track import TRACK_OBJECT_PREFIX
 
 _SP  = 'PROPERTIES'
 _RG  = 'WINDOW'
+_SC  = 'scene'
+_OB  = 'object'
+
+# Legacy aliases kept for safety
+_SPACE  = _SP
+_REGION = _RG
+_CTX    = _SC
 
 
 # ═══════════════════════════════════════════════════════════════
