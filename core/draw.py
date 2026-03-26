@@ -166,7 +166,8 @@ def _draw_callback():
 # ─── Registration ─────────────────────────────────────────────────────────────
 
 def register():
-    enable()
+    # Defer until Blender's SpaceView3D is available
+    bpy.app.timers.register(lambda: enable() or None, first_interval=0.2)
 
 
 def unregister():
