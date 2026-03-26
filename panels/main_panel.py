@@ -36,6 +36,11 @@ class HOL_PT_OSC(bpy.types.Panel):
         else:
             row.operator("holophonix.osc_connect", text="Connect", icon='PLAY')
 
+        layout.separator()
+        row = layout.row(align=True)
+        row.operator("holophonix.setup_workspace", text="Setup Workspace", icon='WORKSPACE')
+        row.operator("holophonix.setup_scene", text="Setup Scene", icon='SCENE_DATA')
+
 
 # ─── Tracks panel ─────────────────────────────────────────────────────────────
 
@@ -80,45 +85,6 @@ class HOL_PT_Tracks(bpy.types.Panel):
                 box.label(text=f"Track {item.track_id}: {item.track_name}", icon='OBJECT_DATA')
                 box.prop(obj.holo_track, "osc_direction", text="Direction")
                 box.prop(obj.holo_track, "coord_system", text="Coords")
-
-
-# ─── Animation panel ─────────────────────────────────────────────────────────
-
-class HOL_PT_Animation(bpy.types.Panel):
-    bl_label = "Animation"
-    bl_idname = "HOL_PT_Animation"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = PANEL_CATEGORY
-    bl_order = 2
-
-    def draw(self, context):
-        layout = self.layout
-        from ..core import animation as anim_core
-        from ..core import playback as pb
-
-        # Quick play on selected tracks
-        box = layout.box()
-        box.label(text="Quick Play", icon='PLAY')
-
-        scene = context.scene
-        box.prop(scene, "holo_quick_model", text="Model")
-        box.prop(scene, "holo_quick_duration", text="Duration (s)")
-        box.prop(scene, "holo_quick_loop", text="Loop")
-
-        row = box.row(align=True)
-        row.operator("holophonix.quick_play", text="Play Selected", icon='PLAY')
-        row.operator("holophonix.cue_stop_all", text="Stop All", icon='SNAP_FACE')
-
-        # Playing status
-        active = pb.get_active_animations()
-        if active:
-            layout.label(text=f"{len(active)} animation(s) running", icon='TIME')
-            for slot_id, anim in active.items():
-                row = layout.row()
-                row.label(text=f"  {slot_id} [{anim.loop_mode}]")
-                op = row.operator("holophonix.cue_stop", text="", icon='PANEL_CLOSE')
-                op.cue_name = slot_id
 
 
 # ─── Cue list panel ───────────────────────────────────────────────────────────
@@ -198,80 +164,23 @@ class HOL_UL_CueList(bpy.types.UIList):
         op2.cue_name = item.name
 
 
-# ─── Quick play operator & scene props ───────────────────────────────────────
-
-class HOL_OT_QuickPlay(bpy.types.Operator):
-    """Play animation on currently selected track objects."""
-    bl_idname = "holophonix.quick_play"
-    bl_label = "Quick Play"
-    bl_options = {'REGISTER'}
-
-    def execute(self, context):
-        from ..core import playback as pb
-        from ..core.track import TRACK_OBJECT_PREFIX
-
-        selected_ids = []
-        for obj in context.selected_objects:
-            if obj.name.startswith(TRACK_OBJECT_PREFIX) and hasattr(obj, "holo_track"):
-                selected_ids.append(obj.holo_track.track_id)
-
-        if not selected_ids:
-            self.report({'WARNING'}, "No Holophonix track objects selected")
-            return {'CANCELLED'}
-
-        scene = context.scene
-        pb.play(
-            slot_id=f"quick_{'_'.join(str(i) for i in selected_ids)}",
-            track_ids=selected_ids,
-            model_id=scene.holo_quick_model,
-            params={},
-            duration=scene.holo_quick_duration,
-            loop_mode=scene.holo_quick_loop,
-        )
-        return {'FINISHED'}
-
-
 # ─── Registration ─────────────────────────────────────────────────────────────
 
 classes = (
     HOL_PT_OSC,
     HOL_PT_Tracks,
-    HOL_PT_Animation,
     HOL_PT_Cues,
     HOL_UL_CueList,
-    HOL_OT_QuickPlay,
 )
 
 
 def register():
     from ..core import animation as anim_core
     anim_core.load_all_models()
-
     for cls in classes:
         bpy.utils.register_class(cls)
 
-    # Quick-play scene properties
-    bpy.types.Scene.holo_quick_model = bpy.props.EnumProperty(
-        name="Model",
-        items=anim_core.get_model_enum_items,
-    )
-    bpy.types.Scene.holo_quick_duration = bpy.props.FloatProperty(
-        name="Duration", default=4.0, min=0.1, unit='TIME_ABSOLUTE'
-    )
-    bpy.types.Scene.holo_quick_loop = bpy.props.EnumProperty(
-        name="Loop",
-        items=[
-            ('ONCE',      "Once",      "Play once"),
-            ('LOOP',      "Loop",      "Loop continuously"),
-            ('PING_PONG', "Ping-Pong", "Ping-pong loop"),
-        ],
-        default='LOOP'
-    )
-
 
 def unregister():
-    del bpy.types.Scene.holo_quick_loop
-    del bpy.types.Scene.holo_quick_duration
-    del bpy.types.Scene.holo_quick_model
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
