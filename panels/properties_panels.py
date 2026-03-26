@@ -45,6 +45,9 @@ class HOL_PT_Root(bpy.types.Panel):
         row3.operator("holophonix.new_scene",       text="New Scene",       icon='FILE_NEW')
         row3.operator("holophonix.setup_scene",     text="Setup Scene",     icon='SCENE_DATA')
         row3.operator("holophonix.setup_workspace", text="Setup Workspace", icon='WORKSPACE')
+        
+        layout.separator()
+        layout.operator("holophonix.open_pyside_window", text="Advanced Control Window", icon='WINDOW')
 
 
 # ═══════════════════════════════════════════════════════════════
