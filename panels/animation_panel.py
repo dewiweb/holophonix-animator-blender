@@ -95,18 +95,34 @@ def _on_model_change(scene, model_id: str):
 
 def _refresh_preview(scene):
     """Recompute and draw the trajectory preview in the viewport."""
-    params_pg = scene.holo_anim_params
-    model_id = params_pg.model_id
-    params = params_pg.get_params_dict()
+    params_pg = getattr(scene, 'holo_anim_params', None)
+    if params_pg is None:
+        return
 
-    # Get origin from active track if any
+    model_id = params_pg.model_id or "circular"
+
+    # Use PropertyGroup params if populated, else fall back to scene custom props
+    params = params_pg.get_params_dict()
+    if not params:
+        model = anim_core.get_model(model_id)
+        if model:
+            params = {
+                key: float(scene.get(f"hol_param_{key}", spec.get("default", 0)))
+                for key, spec in model.get("parameters", {}).items()
+            }
+
+    # Get origin from active object if it's a track, else (0,0,0)
     origin = (0.0, 0.0, 0.0)
-    tracks = scene.holo_tracks.tracks
-    idx = scene.holo_tracks.active_track_index
-    if 0 <= idx < len(tracks):
-        obj = bpy.data.objects.get(tracks[idx].object_name)
-        if obj:
-            origin = tuple(obj.location)
+    active_obj = bpy.context.active_object
+    if active_obj and active_obj.name.startswith(TRACK_OBJECT_PREFIX):
+        origin = tuple(active_obj.location)
+    else:
+        tracks = getattr(scene.holo_tracks, 'tracks', [])
+        idx    = getattr(scene.holo_tracks, 'active_track_index', -1)
+        if 0 <= idx < len(tracks):
+            obj = bpy.data.objects.get(tracks[idx].object_name)
+            if obj:
+                origin = tuple(obj.location)
 
     draw_core.request_preview(model_id, params, origin=origin)
 
