@@ -95,7 +95,14 @@ class HOL_OT_FocusView(bpy.types.Operator):
                 obj.select_set(True)
                 found = True
         if found:
-            bpy.ops.view3d.view_selected()
+            # Use context override for view3d operations
+            for window in bpy.context.window_manager.windows:
+                for area in window.screen.areas:
+                    if area.type == 'VIEW_3D':
+                        override = {'window': window, 'screen': window.screen, 'area': area}
+                        with bpy.context.temp_override(**override):
+                            bpy.ops.view3d.view_selected()
+                        break
         else:
             self.report({'WARNING'}, "No tracks in scene")
         return {'FINISHED'}

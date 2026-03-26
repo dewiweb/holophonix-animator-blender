@@ -113,7 +113,7 @@ def _refresh_preview(scene):
 
     # Get origin from active object if it's a track, else (0,0,0)
     origin = (0.0, 0.0, 0.0)
-    active_obj = bpy.context.active_object
+    active_obj = getattr(context, 'active_object', None)
     if active_obj and active_obj.name.startswith(TRACK_OBJECT_PREFIX):
         origin = tuple(active_obj.location)
     else:

@@ -402,8 +402,8 @@ class HolophonixWindow(QMainWindow):
         try:
             mode_map = {"Once": "ONCE", "Loop": "LOOP", "Ping-Pong": "PING_PONG"}
             mode = mode_map.get(mode_text, "LOOP")
-            scene = bpy.context.scene
-            scene.holo_quick_loop = mode
+            # Store loop mode as a custom property on the scene
+            bpy.context.scene["holo_quick_loop"] = mode
             self.log_text.append(f"Loop mode set to: {mode}")
         except Exception as e:
             self.log_text.append(f"Loop mode error: {e}")
@@ -413,7 +413,12 @@ class HolophonixWindow(QMainWindow):
         duration = value / 10.0  # Convert to seconds
         self.duration_label.setText(f"Duration: {duration:.1f}s")
         try:
-            bpy.context.scene.holo_quick_duration = duration
+            # Store duration as a custom property on the scene
+            bpy.context.scene["holo_quick_duration"] = duration
+            # Also update the anim_params duration if available
+            params_pg = getattr(bpy.context.scene, 'holo_anim_params', None)
+            if params_pg:
+                params_pg.duration = duration
         except Exception as e:
             self.log_text.append(f"Duration update error: {e}")
     
