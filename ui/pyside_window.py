@@ -993,17 +993,41 @@ class HolophonixWindow(QMainWindow):
     def play_selected(self):
         """Start playback."""
         try:
-            # Check if we have selected tracks
-            selected_objects = getattr(bpy.context, 'selected_objects', [])
-            track_objects = [obj for obj in selected_objects if obj.name.startswith('holo.track')]
+            # Check if we have selected tracks - use context override for PySide
+            track_objects = []
+            for window in bpy.context.window_manager.windows:
+                for area in window.screen.areas:
+                    if area.type == 'VIEW_3D':
+                        override = {'window': window, 'screen': window.screen, 'area': area}
+                        with bpy.context.temp_override(**override):
+                            selected_objects = getattr(bpy.context, 'selected_objects', [])
+                            track_objects = [obj for obj in selected_objects if obj.name.startswith('holo.track')]
+                            break
+                        if track_objects:
+                            break
             
             if not track_objects:
-                if hasattr(self, 'log_text'):
-                    self.log_text.append("⚠️ No tracks selected! Select track objects in viewport.")
-                return
+                # Fallback: check all track objects in scene
+                all_tracks = [obj for obj in bpy.data.objects if obj.name.startswith('holo.track')]
+                if all_tracks:
+                    if hasattr(self, 'log_text'):
+                        self.log_text.append(f"⚠️ No tracks selected! Found {len(all_tracks)} tracks in scene. Select one in viewport.")
+                    # Use first available track as fallback
+                    track_objects = [all_tracks[0]]
+                    if hasattr(self, 'log_text'):
+                        self.log_text.append(f"🔄 Using fallback track: {track_objects[0].name}")
+                else:
+                    if hasattr(self, 'log_text'):
+                        self.log_text.append("⚠️ No tracks in scene! Create tracks first.")
+                    return
             
             if hasattr(self, 'log_text'):
-                self.log_text.append(f"🎵 Starting playback on {len(track_objects)} track(s)")
+                self.log_text.append(f"🎵 Starting playback on {len(track_objects)} track(s): {', '.join([t.name for t in track_objects])}")
+            
+            # Select the tracks before playing
+            bpy.ops.object.select_all(action='DESELECT')
+            for track in track_objects:
+                track.select_set(True)
             
             bpy.ops.holophonix.play_selected()
             if hasattr(self, 'log_text'):
