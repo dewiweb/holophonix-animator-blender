@@ -228,12 +228,12 @@ class HOL_PT_Animation_Props(bpy.types.Panel):
         n_active = len(active)
         box.label(
             text=f"Playing: {n_active}" if n_active else "Stopped",
-            icon='PLAY' if n_active else 'SNAP_FACE'
+            icon='PLAY' if n_active else 'HANDLETYPE_FREE_VEC'
         )
         row = box.row(align=True)
         row.scale_y = 1.4
         row.operator("holophonix.play_selected", text="Play Selected", icon='PLAY')
-        row.operator("holophonix.stop_all",      text="Stop All",      icon='SNAP_FACE')
+        row.operator("holophonix.stop_all",      text="Stop All",      icon='CANCEL')
 
         if active:
             sub = box.box()
@@ -241,7 +241,7 @@ class HOL_PT_Animation_Props(bpy.types.Panel):
                 row = sub.row(align=True)
                 row.label(
                     text=f"{slot_id[:18]}  {anim_obj.elapsed():.1f}s  [{anim_obj.loop_mode}]",
-                    icon='KEYTYPE_MOVING_HOLD_VEC'
+                    icon='KEYFRAME'
                 )
                 op = row.operator("holophonix.cue_stop", text="", icon='PANEL_CLOSE')
                 op.cue_name = slot_id
