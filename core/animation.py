@@ -148,3 +148,7 @@ def apply_loop_mode(t_raw: float, loop_mode: str) -> float:
         cycle = t_raw % 2.0
         return cycle if cycle <= 1.0 else 2.0 - cycle
     return min(t_raw, 1.0)
+
+
+# Auto-load at import time so models are always available
+load_all_models()

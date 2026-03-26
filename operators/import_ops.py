@@ -5,10 +5,21 @@ import bpy
 import os
 import json
 import zipfile
+import math
 from bpy_extras.io_utils import ImportHelper
 from bpy.props import StringProperty, BoolProperty
 from ..core.track import create_track_object, TRACK_OBJECT_PREFIX
 from ..core import osc as osc_core
+
+
+def _sph2cart(elev_deg: float, azim_deg: float, radius: float):
+    """Holophonix spherical (elev, azim, radius) → Cartesian (x, y, z)."""
+    e = math.radians(elev_deg)
+    a = math.radians(azim_deg)
+    x = radius * math.cos(e) * math.cos(a)
+    y = radius * math.cos(e) * math.sin(a)
+    z = radius * math.sin(e)
+    return (x, y, z)
 
 
 # ─── Import .hol file ─────────────────────────────────────────────────────────
@@ -66,8 +77,8 @@ class HOL_OT_ImportHol(bpy.types.Operator, ImportHelper):
             self.report({'ERROR'}, f"Failed to parse .hol file: {e}")
             return {'CANCELLED'}
 
-        # Log top-level keys to understand the actual structure
-        print(f"[HOL Import] Top-level keys: {list(data.keys()) if isinstance(data, dict) else type(data)}")
+        top_keys = list(data.keys()) if isinstance(data, dict) else []
+        print(f"[HOL Import] Top-level keys: {top_keys}")
 
         if self.clear_existing:
             _clear_existing_tracks(context)
@@ -76,31 +87,33 @@ class HOL_OT_ImportHol(bpy.types.Operator, ImportHelper):
         errors = 0
 
         if self.import_tracks:
-            tracks_data = _extract_tracks(data)
-            print(f"[HOL Import] Found {len(tracks_data)} track entries")
-
-            for track in tracks_data:
-                try:
-                    if not isinstance(track, dict):
-                        continue
-                    tid = _get_track_id(track)
-                    if tid <= 0:
-                        continue
-                    name = (track.get("name") or track.get("label") or
-                            track.get("trackName") or f"Track {tid:03d}")
-                    pos = (track.get("position") or track.get("xyz") or
-                           track.get("pos") or {})
-                    if isinstance(pos, dict):
-                        x = float(pos.get("x") or pos.get("X") or 0.0)
-                        y = float(pos.get("y") or pos.get("Y") or 0.0)
-                        z = float(pos.get("z") or pos.get("Z") or 0.0)
-                    else:
-                        x, y, z = 0.0, 0.0, 0.0
-                    create_track_object(tid, name, location=(x, y, z))
-                    count += 1
-                except Exception as e:
-                    errors += 1
-                    print(f"[HOL Import] Error on track entry {track}: {e}")
+            # ── Real Holophonix .hol format ──────────────────────────
+            # data["hol"] = { "/track/1/name": ["TrackName"], ... }
+            # data["ae"]  = ["/track/1/azim 45.0", "/track/1/elev 0.0", ...]
+            if "hol" in data and "ae" in data:
+                count, errors = _import_hol_native(data, context)
+            else:
+                # Fallback: try generic structure
+                tracks_data = _extract_tracks(data)
+                print(f"[HOL Import] Fallback parser: {len(tracks_data)} entries")
+                for track in tracks_data:
+                    try:
+                        if not isinstance(track, dict):
+                            continue
+                        tid = _get_track_id(track)
+                        if tid <= 0:
+                            continue
+                        name = (track.get("name") or track.get("label") or
+                                track.get("trackName") or f"Track {tid:03d}")
+                        pos = track.get("position") or track.get("xyz") or {}
+                        x = float(pos.get("x", 0.0)) if isinstance(pos, dict) else 0.0
+                        y = float(pos.get("y", 0.0)) if isinstance(pos, dict) else 0.0
+                        z = float(pos.get("z", 0.0)) if isinstance(pos, dict) else 0.0
+                        create_track_object(tid, name, location=(x, y, z))
+                        count += 1
+                    except Exception as e:
+                        errors += 1
+                        print(f"[HOL Import] Error: {e}")
 
         msg = f"Imported {count} tracks from {os.path.basename(hol_path)}"
         if errors:
@@ -155,7 +168,72 @@ def _register_dump_handler(context):
     osc_core.add_handler("/track/*/xyz", on_track_xyz)
 
 
-# ─── .hol parsing helpers ────────────────────────────────────────────────────
+# ─── .hol parsing helpers ────────────────────────────────────────────────────────────
+
+def _import_hol_native(data: dict, context) -> tuple:
+    """
+    Parse the native Holophonix .hol format:
+      data['hol'] = { '/track/1/name': ['TrackName'], '/track/1/view3D/file3D': [...], ... }
+      data['ae']  = [ '/track/1/azim 45.0', '/track/1/elev 0.0', '/track/1/dist 2.0', ... ]
+    Returns (count, errors).
+    """
+    hol  = data['hol']   # dict: osc_path -> [value, ...]
+    ae   = data['ae']    # list of strings: "osc_path value"
+
+    # Build ae lookup: { '/track/1/azim': 45.0, ... }
+    ae_vals = {}
+    for entry in ae:
+        if not isinstance(entry, str):
+            continue
+        parts = entry.split(None, 1)  # split on first whitespace
+        if len(parts) == 2:
+            try:
+                ae_vals[parts[0]] = float(parts[1])
+            except ValueError:
+                ae_vals[parts[0]] = parts[1]
+
+    # Gather track IDs that have a name
+    track_ids = set()
+    for osc_path in hol:
+        parts = osc_path.strip('/').split('/')
+        if len(parts) >= 3 and parts[0] == 'track':
+            try:
+                track_ids.add(int(parts[1]))
+            except ValueError:
+                pass
+    # Also from ae
+    for osc_path in ae_vals:
+        parts = osc_path.strip('/').split('/')
+        if len(parts) >= 3 and parts[0] == 'track':
+            try:
+                track_ids.add(int(parts[1]))
+            except ValueError:
+                pass
+
+    count = 0
+    errors = 0
+    for tid in sorted(track_ids):
+        try:
+            name_key  = f"/track/{tid}/name"
+            name_val  = hol.get(name_key, [f"Track {tid:03d}"])
+            name      = name_val[0] if isinstance(name_val, list) and name_val else str(name_val)
+            if not name:
+                continue  # skip unnamed tracks
+
+            azim = float(ae_vals.get(f"/track/{tid}/azim", 0.0))
+            elev = float(ae_vals.get(f"/track/{tid}/elev", 0.0))
+            dist = float(ae_vals.get(f"/track/{tid}/dist", 1.0))
+            x, y, z = _sph2cart(elev, azim, dist)
+
+            create_track_object(tid, name, location=(x, y, z))
+            count += 1
+        except Exception as e:
+            errors += 1
+            print(f"[HOL Import] Track {tid} error: {e}")
+
+    print(f"[HOL Import] Native parser: {count} tracks imported, {errors} errors")
+    return count, errors
+
 
 def _extract_tracks(data: dict) -> list:
     """
