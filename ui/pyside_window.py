@@ -4,7 +4,6 @@
 import bpy
 import sys
 from threading import Thread
-from bpy.app.handlers import timer
 
 # Try to import PySide
 try:
