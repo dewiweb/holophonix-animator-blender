@@ -158,8 +158,11 @@ class HOL_PT_Animation_Props(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        params_pg = context.scene.holo_anim_params
-        model     = anim_core.get_model(params_pg.model_id)
+        params_pg = getattr(context.scene, 'holo_anim_params', None)
+        if params_pg is None:
+            layout.label(text="Reload Scripts to initialize", icon='ERROR')
+            return
+        model = anim_core.get_model(params_pg.model_id)
 
         # ── Model selector ──────────────────────────────────────
         box = layout.box()
