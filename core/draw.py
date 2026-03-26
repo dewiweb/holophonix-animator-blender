@@ -165,10 +165,19 @@ def _draw_callback():
 
 # ─── Registration ─────────────────────────────────────────────────────────────
 
+def _on_depsgraph_update(scene, depsgraph):
+    """One-shot handler: enable draw handler once viewport is ready, then remove self."""
+    enable()
+    bpy.app.handlers.depsgraph_update_post.remove(_on_depsgraph_update)
+
+
 def register():
-    # Defer until Blender's SpaceView3D is available
-    bpy.app.timers.register(lambda: enable() or None, first_interval=0.2)
+    # Register draw handler lazily on first depsgraph update (viewport ready)
+    bpy.app.handlers.depsgraph_update_post.append(_on_depsgraph_update)
 
 
 def unregister():
+    # Clean up one-shot handler if still pending
+    if _on_depsgraph_update in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.remove(_on_depsgraph_update)
     disable()
