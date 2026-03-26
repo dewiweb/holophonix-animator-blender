@@ -8,7 +8,7 @@ bl_info = {
     "description": "Spatial audio animation tool for Holophonix processors",
     "blender": (4, 2, 0),
     "version": (0, 1, 0),
-    "location": "3D View > N-Panel > Holophonix",
+    "location": "Properties > Scene > Holophonix Animator",
     "warning": "Beta — Blender 5.0 compatible",
     "doc_url": "",
     "tracker_url": "",
