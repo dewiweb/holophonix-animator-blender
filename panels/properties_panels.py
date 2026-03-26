@@ -1,12 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Properties Editor panels
-#
-# Architecture:
-#   PROPERTIES / WINDOW / scene  → global settings (OSC, animation, cues, tracks)
-#   PROPERTIES / WINDOW / object → per-track properties (when a track obj is active)
-#
-# Blender does not expose a public API to add a new icon-tab in the Properties
-# sidebar. We use the existing Scene + Object tabs with clearly labelled sub-panels.
+# Holophonix Animator — N-Panel (3D Viewport sidebar, tab "Holophonix")
+# All controls in one place: N key → Holophonix tab
 
 import bpy
 from ..core import animation as anim_core
@@ -14,30 +8,23 @@ from ..core import playback as pb
 from ..core import draw as draw_core
 from ..core.track import TRACK_OBJECT_PREFIX
 
-_SP  = 'PROPERTIES'
-_RG  = 'WINDOW'
-_SC  = 'scene'
-_OB  = 'object'
-
-# Legacy aliases kept for safety
-_SPACE  = _SP
-_REGION = _RG
-_CTX    = _SC
+_SP  = 'VIEW_3D'
+_RG  = 'UI'
+_CAT = 'Holophonix'
 
 
 # ═══════════════════════════════════════════════════════════════
-#  ROOT PANEL — gives the tab its icon in the Properties sidebar
+#  ROOT PANEL — N-Panel tab "Holophonix"
 # ═══════════════════════════════════════════════════════════════
 
 class HOL_PT_Root(bpy.types.Panel):
-    """Holophonix Animator — root panel (gives the tab its icon)."""
+    """Holophonix Animator — root panel in N-Panel sidebar."""
     bl_label       = "Holophonix Animator"
     bl_idname      = "HOL_PT_Root"
-    bl_space_type  = _SPACE
-    bl_region_type = _REGION
-    bl_context     = _CTX
-    # Custom icon via bl_icon — use built-in that reads well
-    bl_options     = {'DEFAULT_CLOSED'}
+    bl_space_type  = _SP
+    bl_region_type = _RG
+    bl_category    = _CAT
+    bl_order       = 0
 
     def draw(self, context):
         layout = self.layout
@@ -67,9 +54,9 @@ class HOL_PT_Root(bpy.types.Panel):
 class HOL_PT_OSC_Props(bpy.types.Panel):
     bl_label       = "OSC Connection"
     bl_idname      = "HOL_PT_OSC_Props"
-    bl_space_type  = _SPACE
-    bl_region_type = _REGION
-    bl_context     = _CTX
+    bl_space_type  = _SP
+    bl_region_type = _RG
+    bl_category    = _CAT
     bl_parent_id   = "HOL_PT_Root"
 
     def draw(self, context):
@@ -97,9 +84,9 @@ class HOL_PT_OSC_Props(bpy.types.Panel):
 class HOL_PT_Tracks_Props(bpy.types.Panel):
     bl_label       = "Tracks"
     bl_idname      = "HOL_PT_Tracks_Props"
-    bl_space_type  = _SPACE
-    bl_region_type = _REGION
-    bl_context     = _CTX
+    bl_space_type  = _SP
+    bl_region_type = _RG
+    bl_category    = _CAT
     bl_parent_id   = "HOL_PT_Root"
 
     def draw(self, context):
@@ -164,9 +151,9 @@ class HOL_UL_TrackList(bpy.types.UIList):
 class HOL_PT_Animation_Props(bpy.types.Panel):
     bl_label       = "Animation"
     bl_idname      = "HOL_PT_Animation_Props"
-    bl_space_type  = _SPACE
-    bl_region_type = _REGION
-    bl_context     = _CTX
+    bl_space_type  = _SP
+    bl_region_type = _RG
+    bl_category    = _CAT
     bl_parent_id   = "HOL_PT_Root"
 
     def draw(self, context):
@@ -254,9 +241,9 @@ class HOL_PT_Animation_Props(bpy.types.Panel):
 class HOL_PT_Cues_Props(bpy.types.Panel):
     bl_label       = "Cue List"
     bl_idname      = "HOL_PT_Cues_Props"
-    bl_space_type  = _SPACE
-    bl_region_type = _REGION
-    bl_context     = _CTX
+    bl_space_type  = _SP
+    bl_region_type = _RG
+    bl_category    = _CAT
     bl_parent_id   = "HOL_PT_Root"
     bl_options     = {'DEFAULT_CLOSED'}
 
@@ -332,12 +319,13 @@ class HOL_UL_CueListProps(bpy.types.UIList):
 # ═══════════════════════════════════════════════════════════════
 
 class HOL_PT_TrackObject(bpy.types.Panel):
-    """Track properties in the Object Properties tab."""
-    bl_label       = "Holophonix Track"
+    """Per-track properties — visible in N-Panel when a track object is active."""
+    bl_label       = "Track Properties"
     bl_idname      = "HOL_PT_TrackObject"
     bl_space_type  = _SP
     bl_region_type = _RG
-    bl_context     = 'object'
+    bl_category    = _CAT
+    bl_parent_id   = "HOL_PT_Root"
     bl_options     = {'DEFAULT_CLOSED'}
 
     @classmethod
