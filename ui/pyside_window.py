@@ -338,21 +338,19 @@ def show_pyside_window():
         print("[Holophonix] PySide not available. Install PySide6 to use advanced UI.")
         return False
     
-    if _pyside_window is None:
-        # Create application if needed
+    # Always recreate window to handle closed windows
+    # Create application if needed
+    if _pyside_app is None:
+        _pyside_app = QApplication.instance()
         if _pyside_app is None:
-            _pyside_app = QApplication.instance()
-            if _pyside_app is None:
-                _pyside_app = QApplication(sys.argv)
-        
-        # Create window
-        _pyside_window = HolophonixWindow()
-        _pyside_window.show()
-        return True
+            _pyside_app = QApplication(sys.argv)
     
-    # Window already exists, bring to front
-    _pyside_window.raise_()
-    _pyside_window.activateWindow()
+    # Create new window instance
+    if _pyside_window:
+        _pyside_window.close()
+    
+    _pyside_window = HolophonixWindow()
+    _pyside_window.show()
     return True
 
 
