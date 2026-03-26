@@ -169,99 +169,6 @@ class HOL_OT_StopAll(bpy.types.Operator):
         return {'FINISHED'}
 
 
-# ─── Main Animation panel ─────────────────────────────────────────────────────
-
-class HOL_PT_AnimationMain(bpy.types.Panel):
-    bl_label = "Animation"
-    bl_idname = "HOL_PT_AnimationMain"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = PANEL_CATEGORY
-    bl_order = 2
-
-    def draw(self, context):
-        layout = self.layout
-        params_pg = context.scene.holo_anim_params
-        model = anim_core.get_model(params_pg.model_id)
-
-        # ── Model selector ──
-        box = layout.box()
-        box.label(text="Model", icon='CURVE_PATH')
-        row = box.row(align=True)
-
-        # Draw model buttons (like radio buttons)
-        for m in anim_core.get_all_models():
-            mid = m.get("id", "")
-            label = m.get("label", mid)
-            is_active = (mid == params_pg.model_id)
-            op = row.operator(
-                "holophonix.set_anim_model",
-                text=label,
-                depress=is_active,
-            )
-            op.model_id = mid
-
-        # ── Dynamic parameters ──
-        if model:
-            param_specs = model.get("parameters", {})
-            if param_specs:
-                box = layout.box()
-                box.label(text="Parameters", icon='SETTINGS')
-                for key, spec in param_specs.items():
-                    ptype = spec.get("type", "float")
-                    label = spec.get("label", key)
-                    # Find current value in storage
-                    current_val = _get_param_value(params_pg, key, spec.get("default", 0), ptype)
-
-                    row = box.row()
-                    row.label(text=label)
-                    # We use a prop_search-style approach via operator + custom property
-                    # Stored in scene custom props for live editing
-                    prop_key = f"hol_param_{key}"
-                    if prop_key not in context.scene:
-                        context.scene[prop_key] = current_val
-
-                    if ptype == "enum":
-                        items_list = spec.get("items", [])
-                        # For enum we just show the current value as text for now
-                        row.label(text=str(context.scene.get(prop_key, current_val)))
-                    elif ptype == "int":
-                        row.prop(context.scene, f'["{prop_key}"]', text="", slider=False)
-                    else:
-                        row.prop(context.scene, f'["{prop_key}"]', text="", slider=False)
-
-                # Preview refresh button
-                row = box.row()
-                row.operator("holophonix.refresh_preview", text="Preview Trajectory", icon='CURVE_BEZCURVE')
-
-        # ── Timing ──
-        box = layout.box()
-        box.label(text="Timing", icon='TIME')
-        box.prop(params_pg, "duration")
-        box.prop(params_pg, "loop_mode")
-
-        # ── Transport ──
-        box = layout.box()
-        active = pb.get_active_animations()
-        n_playing = len(active)
-        label = f"Playing: {n_playing}" if n_playing else "Stopped"
-        box.label(text=label, icon='PLAY' if n_playing else 'SNAP_FACE')
-
-        row = box.row(align=True)
-        row.operator("holophonix.play_selected", text="Play Selected", icon='PLAY')
-        row.operator("holophonix.stop_all", text="Stop All", icon='SNAP_FACE')
-
-        # Running animation slots
-        if active:
-            sub = box.box()
-            for slot_id, anim_obj in active.items():
-                row = sub.row()
-                t = anim_obj.elapsed()
-                row.label(text=f"{slot_id[:20]}  {t:.1f}s", icon='KEYTYPE_MOVING_HOLD_VEC')
-                op = row.operator("holophonix.cue_stop", text="", icon='PANEL_CLOSE')
-                op.cue_name = slot_id
-
-
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _get_selected_track_ids(context) -> list:
@@ -288,7 +195,6 @@ classes = (
     HOL_OT_RefreshPreview,
     HOL_OT_PlaySelected,
     HOL_OT_StopAll,
-    HOL_PT_AnimationMain,
 )
 
 
