@@ -160,7 +160,6 @@ class HOL_PT_Animation_Props(bpy.types.Panel):
         layout = self.layout
         params_pg = getattr(context.scene, 'holo_anim_params', None)
         if params_pg is None:
-            layout.label(text="Reload Scripts to initialize", icon='ERROR')
             return
         model = anim_core.get_model(params_pg.model_id)
 
