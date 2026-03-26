@@ -1,0 +1,11 @@
+{
+  "id": "random_walk",
+  "label": "Random Walk",
+  "description": "Pseudo-random position changes (seeded, deterministic)",
+  "type": "random_walk",
+  "parameters": {
+    "radius": { "label": "Radius (m)", "type": "float", "default": 3.0, "min": 0.1, "max": 50.0 },
+    "height": { "label": "Height (m)", "type": "float", "default": 0.0, "min": 0.0, "max": 20.0 },
+    "seed":   { "label": "Seed",       "type": "int",   "default": 42,  "min": 0,   "max": 9999 }
+  }
+}

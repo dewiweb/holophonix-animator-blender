@@ -1,0 +1,14 @@
+{
+  "id": "linear",
+  "label": "Linear",
+  "description": "Linear trajectory between two points",
+  "type": "linear",
+  "parameters": {
+    "x0": { "label": "Start X (m)", "type": "float", "default": -3.0, "min": -50.0, "max": 50.0 },
+    "y0": { "label": "Start Y (m)", "type": "float", "default": 0.0,  "min": -50.0, "max": 50.0 },
+    "z0": { "label": "Start Z (m)", "type": "float", "default": 0.0,  "min": -20.0, "max": 20.0 },
+    "x1": { "label": "End X (m)",   "type": "float", "default": 3.0,  "min": -50.0, "max": 50.0 },
+    "y1": { "label": "End Y (m)",   "type": "float", "default": 0.0,  "min": -50.0, "max": 50.0 },
+    "z1": { "label": "End Z (m)",   "type": "float", "default": 0.0,  "min": -20.0, "max": 20.0 }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "pendulum",
+  "label": "Pendulum",
+  "description": "Pendulum swing along one axis",
+  "type": "pendulum",
+  "parameters": {
+    "amplitude": { "label": "Amplitude (m)", "type": "float", "default": 3.0, "min": 0.1, "max": 50.0 },
+    "axis":      { "label": "Axis",          "type": "enum",  "default": "x", "items": ["x", "y", "z"] }
+  }
+}
