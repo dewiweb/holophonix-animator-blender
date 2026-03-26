@@ -340,6 +340,10 @@ class HolophonixWindow(QMainWindow):
         tracks_tab = self.create_tracks_tab()
         self.tab_widget.addTab(tracks_tab, "🎵 Tracks")
         
+        # Tab 5: Logger (for debugging)
+        logger_tab = self.create_logger_tab()
+        self.tab_widget.addTab(logger_tab, "📝 Logger")
+        
         main_layout.addWidget(self.tab_widget)
     
     def create_transport_tab(self):
@@ -597,6 +601,49 @@ class HolophonixWindow(QMainWindow):
         osc_layout.addWidget(import_btn)
         
         layout.addWidget(osc_card)
+        
+        return widget
+    
+    def create_logger_tab(self):
+        """Create debug logger tab."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        # Logger card
+        logger_card = ModernCard()
+        logger_layout = QVBoxLayout(logger_card)
+        logger_layout.setContentsMargins(12, 12, 12, 12)
+        
+        # Title
+        title = QLabel("📝 Activity Logger")
+        title.setStyleSheet("font-size: 16px; font-weight: bold; color: #0078d4; margin-bottom: 8px;")
+        logger_layout.addWidget(title)
+        
+        # Logger text area
+        self.log_text = QTextEdit()
+        self.log_text.setStyleSheet("""
+            QTextEdit {
+                background: #1a1a1c;
+                border: 1px solid #444;
+                border-radius: 4px;
+                color: #ccc;
+                font-family: 'Consolas', monospace;
+                font-size: 12px;
+            }
+        """)
+        self.log_text.setReadOnly(True)
+        logger_layout.addWidget(self.log_text)
+        
+        # Clear button
+        clear_btn = ModernButton("🗑️ Clear Log")
+        clear_btn.clicked.connect(self.log_text.clear)
+        logger_layout.addWidget(clear_btn)
+        
+        layout.addWidget(logger_card)
+        
+        # Add initial message
+        self.log_text.append("🎵 Holophonix Advanced Control Window initialized")
+        self.log_text.append("📝 Ready for debugging...")
         
         return widget
     
@@ -928,23 +975,42 @@ class HolophonixWindow(QMainWindow):
         """Toggle OSC connection."""
         try:
             osc = bpy.context.scene.holo_osc_settings
+            if hasattr(self, 'log_text'):
+                self.log_text.append(f"📡 OSC status: {'Connected' if osc.connected else 'Disconnected'}")
+            
             if osc.connected:
                 bpy.ops.holophonix.osc_disconnect()
+                if hasattr(self, 'log_text'):
+                    self.log_text.append("📡 OSC disconnected")
             else:
                 bpy.ops.holophonix.osc_connect()
+                if hasattr(self, 'log_text'):
+                    self.log_text.append("📡 OSC connecting...")
         except Exception as e:
             if hasattr(self, 'log_text'):
-                self.log_text.append(f"OSC toggle error: {e}")
+                self.log_text.append(f"📡 OSC toggle error: {e}")
     
     def play_selected(self):
         """Start playback."""
         try:
+            # Check if we have selected tracks
+            selected_objects = getattr(bpy.context, 'selected_objects', [])
+            track_objects = [obj for obj in selected_objects if obj.name.startswith('holo.track')]
+            
+            if not track_objects:
+                if hasattr(self, 'log_text'):
+                    self.log_text.append("⚠️ No tracks selected! Select track objects in viewport.")
+                return
+            
+            if hasattr(self, 'log_text'):
+                self.log_text.append(f"🎵 Starting playback on {len(track_objects)} track(s)")
+            
             bpy.ops.holophonix.play_selected()
             if hasattr(self, 'log_text'):
                 self.log_text.append("🎵 Playback started")
         except Exception as e:
             if hasattr(self, 'log_text'):
-                self.log_text.append(f"Play error: {e}")
+                self.log_text.append(f"🎵 Play error: {e}")
     
     def stop_all(self):
         """Stop all playback."""
@@ -954,27 +1020,25 @@ class HolophonixWindow(QMainWindow):
                 self.log_text.append("⏹ Playback stopped")
         except Exception as e:
             if hasattr(self, 'log_text'):
-                self.log_text.append(f"Stop error: {e}")
+                self.log_text.append(f"⏹ Stop error: {e}")
     
     def set_model(self, model_id):
         """Set animation model."""
         try:
+            if hasattr(self, 'log_text'):
+                self.log_text.append(f"🎭 Setting model to: {model_id}")
+            
             bpy.ops.holophonix.set_anim_model(model_id=model_id)
             if hasattr(self, 'log_text'):
                 self.log_text.append(f"🎭 Model set to: {model_id}")
         except Exception as e:
             if hasattr(self, 'log_text'):
-                self.log_text.append(f"Model set error: {e}")
+                self.log_text.append(f"🎭 Model set error: {e}")
     
     def osc_dump(self):
-        """Trigger OSC dump."""
-        try:
-            bpy.ops.holophonix.osc_dump()
-            if hasattr(self, 'log_text'):
-                self.log_text.append("💾 OSC dump triggered")
-        except Exception as e:
-            if hasattr(self, 'log_text'):
-                self.log_text.append(f"OSC dump error: {e}")
+        """Trigger OSC dump (not implemented yet)."""
+        if hasattr(self, 'log_text'):
+            self.log_text.append("⚠️ OSC dump not implemented yet")
     
     def update_loop_mode(self, mode_text):
         """Update loop mode."""
