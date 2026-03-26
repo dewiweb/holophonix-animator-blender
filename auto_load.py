@@ -22,7 +22,7 @@ def _discover_modules(addon_dir: Path, package: str):
         onerror=lambda x: None,
     ):
         # Skip vendor libs and __init__
-        if any(skip in name for skip in ("auto_load", "vendor.", "pythonosc.", "oscpy.")):
+        if any(skip in name for skip in ("auto_load", "vendor.", "pythonosc.", "oscpy.", "test_", "startup_")):
             continue
         try:
             mod = importlib.import_module(name)
