@@ -83,6 +83,13 @@ def _cast_value(s: str, param_type: str):
 def _on_model_change(scene, model_id: str):
     """Initialize parameters and refresh preview when model changes."""
     scene.holo_anim_params.init_from_model(model_id)
+    # Also seed scene custom props used by the panel widgets
+    model = anim_core.get_model(model_id)
+    if model:
+        for key, spec in model.get("parameters", {}).items():
+            prop_key = f"hol_param_{key}"
+            if prop_key not in scene:
+                scene[prop_key] = spec.get("default", 0)
     _refresh_preview(scene)
 
 

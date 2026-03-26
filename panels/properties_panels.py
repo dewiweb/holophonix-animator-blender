@@ -203,17 +203,14 @@ class HOL_PT_Animation_Props(bpy.types.Panel):
                     vmin     = spec.get("min", -9999)
                     vmax     = spec.get("max",  9999)
 
-                    # Ensure custom prop exists with correct default
-                    if prop_key not in context.scene:
-                        context.scene[prop_key] = default
-
                     row = col.row(align=True)
                     row.label(text=label)
                     if ptype == "enum":
-                        # Show as plain label — enum editing via JSON for now
                         row.label(text=str(context.scene.get(prop_key, default)))
-                    else:
+                    elif prop_key in context.scene:
                         row.prop(context.scene, f'["{prop_key}"]', text="", slider=False)
+                    else:
+                        row.label(text=f"{default} (click model to init)")
 
                 col.separator()
                 col.operator("holophonix.refresh_preview", text="Preview Trajectory", icon='CURVE_BEZCURVE')
