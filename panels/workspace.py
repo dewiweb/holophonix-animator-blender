@@ -61,6 +61,24 @@ class HOL_OT_SetupScene(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class HOL_OT_NewScene(bpy.types.Operator):
+    """Clear default objects and configure scene for Holophonix."""
+    bl_idname  = "holophonix.new_scene"
+    bl_label   = "New Holophonix Scene"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        # Remove all default objects
+        bpy.ops.object.select_all(action='SELECT')
+        bpy.ops.object.delete()
+
+        # Setup scene settings
+        bpy.ops.holophonix.setup_scene()
+
+        self.report({'INFO'}, "New Holophonix scene ready")
+        return {'FINISHED'}
+
+
 class HOL_OT_FocusView(bpy.types.Operator):
     """Frame all Holophonix tracks in the viewport."""
     bl_idname = "holophonix.focus_view"
@@ -180,6 +198,7 @@ def _get_or_create_workspace(context, name: str):
 classes = (
     HOL_OT_SetupWorkspace,
     HOL_OT_SetupScene,
+    HOL_OT_NewScene,
     HOL_OT_FocusView,
     HOL_HT_Header,
 )

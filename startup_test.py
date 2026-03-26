@@ -13,6 +13,10 @@ def setup():
 
     scene = bpy.context.scene
 
+    # Remove default scene objects (Cube, Light, Camera)
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
     # Create 3 test tracks
     from holophonix_animator.core.track import create_track_object
     create_track_object(1, "Violon",   location=( 2.0,  0.0, 0.0))
