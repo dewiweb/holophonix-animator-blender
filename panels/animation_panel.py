@@ -198,7 +198,7 @@ class HOL_OT_StopAll(bpy.types.Operator):
 def _get_selected_track_ids(context) -> list:
     return [
         obj.holo_track.track_id
-        for obj in context.selected_objects
+        for obj in bpy.context.selected_objects
         if obj.name.startswith(TRACK_OBJECT_PREFIX) and hasattr(obj, "holo_track")
     ]
 
