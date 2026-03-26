@@ -70,6 +70,17 @@ def get_all_track_objects():
     ]
 
 
+def _get_target_collection():
+    """Return the active collection or fall back to the scene root collection."""
+    ctx = bpy.context
+    if ctx and getattr(ctx, 'collection', None):
+        return ctx.collection
+    # Fallback: scene master collection
+    for scene in bpy.data.scenes:
+        return scene.collection
+    return None
+
+
 def create_track_object(track_id: int, name: str = "", location=(0.0, 0.0, 0.0)) -> bpy.types.Object:
     """Create (or reuse) a Blender object representing a Holophonix track."""
     obj_name = f"{TRACK_OBJECT_PREFIX}{track_id:03d}"
@@ -78,16 +89,19 @@ def create_track_object(track_id: int, name: str = "", location=(0.0, 0.0, 0.0))
     if obj is None:
         mesh = bpy.data.meshes.new(obj_name)
         obj = bpy.data.objects.new(obj_name, mesh)
-        # Use a simple icosphere mesh for visual representation
-        bpy.context.collection.objects.link(obj)
+        col = _get_target_collection()
+        if col:
+            col.objects.link(obj)
 
     obj.location = location
     obj.show_name = True
     obj.holo_track.track_id = track_id
     obj.holo_track.track_name = name or obj_name
 
-    # Sync scene track list
-    _sync_track_list(bpy.context.scene, track_id, name, obj_name)
+    # Sync scene track list (use first available scene if context is unavailable)
+    scene = getattr(bpy.context, 'scene', None) or (bpy.data.scenes[0] if bpy.data.scenes else None)
+    if scene:
+        _sync_track_list(scene, track_id, name, obj_name)
 
     return obj
 
@@ -97,10 +111,11 @@ def delete_track_object(track_id: int):
     obj = get_track_object(track_id)
     if obj:
         bpy.data.objects.remove(obj, do_unlink=True)
-    scene = bpy.context.scene
-    idx = _find_track_list_index(scene, track_id)
-    if idx >= 0:
-        scene.holo_tracks.tracks.remove(idx)
+    scene = getattr(bpy.context, 'scene', None) or (bpy.data.scenes[0] if bpy.data.scenes else None)
+    if scene:
+        idx = _find_track_list_index(scene, track_id)
+        if idx >= 0:
+            scene.holo_tracks.tracks.remove(idx)
 
 
 def xyz_to_aed(x: float, y: float, z: float):
